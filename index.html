@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lead Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    --bg: #faf9f6;
+    --panel: #ffffff;
+    --border: #e3e0d8;
+    --ink: #1c1b19;
+    --ink-soft: #6b6862;
+    --ink-faint: #9a968c;
+    --accent: #1f5e5b;
+    --accent-soft: #e4eeec;
+    --danger: #a9483f;
+
+    --c-cold: #6b7280;
+    --c-leads: #3b6e9e;
+    --c-interested: #b8842b;
+    --c-not-interested: #a9483f;
+    --c-hot: #c1502e;
+    --c-agreement: #6b5b95;
+    --c-invoice: #3e7a4e;
+    --c-closed: #55534c;
+
+    --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { padding: 0; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  .shell { display: grid; grid-template-columns: 236px 1fr; min-height: 100vh; }
+  .sidebar {
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .brand { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
+  .brand .mark { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; color: var(--accent); }
+  .brand .name { font-size: 17px; font-weight: 600; }
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 8px; border-radius: 6px; border: none;
+    background: transparent; text-align: left; color: var(--ink-soft); font-size: 13.5px; width: 100%;
+  }
+  .nav-item:hover { background: var(--bg); color: var(--ink); }
+  .nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .nav-item .label { flex: 1; }
+  .nav-item .count { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+  .nav-item.active .count { color: var(--accent); }
+  .sidebar-foot { margin-top: auto; padding: 0 8px; font-size: 11.5px; color: var(--ink-faint); }
+
+  .main { padding: 24px 32px 48px; max-width: 1180px; }
+  .topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .search, .tagfilter {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel);
+  }
+  .search { flex: 1; min-width: 200px; }
+  .tagfilter { width: 180px; }
+  .btn { padding: 9px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); font-weight: 500; }
+  .btn:hover { border-color: var(--ink-faint); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #184b48; }
+
+  .addpanel, .setup { border: 1px solid var(--border); background: var(--panel); border-radius: 8px; padding: 16px; margin-bottom: 18px; }
+  .addpanel h3, .setup h3 { margin: 0 0 4px; font-size: 14px; }
+  .addpanel p, .setup p { margin: 0 0 10px; color: var(--ink-soft); font-size: 12.5px; }
+  .addpanel textarea {
+    width: 100%; min-height: 110px; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 6px; font-family: var(--mono); font-size: 13px; resize: vertical; background: var(--bg);
+  }
+  .addpanel-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .addresult { font-size: 12.5px; color: var(--ink-soft); }
+
+  .setup input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--mono); font-size: 12.5px; background: var(--bg); margin-bottom: 10px; }
+
+  .table-wrap { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); overflow: hidden; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { text-align: left; font-size: 11.5px; font-weight: 600; color: var(--ink-faint); padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg); white-space: nowrap; }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #fbfaf7; }
+  .cell-number { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+  .cell-name { color: var(--ink-soft); }
+  .status-select { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); font-size: 12.5px; font-weight: 500; }
+  .inline-input { width: 100%; border: 1px solid transparent; background: transparent; padding: 6px 8px; border-radius: 6px; font-size: 13px; min-width: 110px; }
+  .inline-input:hover { border-color: var(--border); }
+  .inline-input:focus { outline: none; border-color: var(--accent); background: var(--panel); }
+  .cell-updated { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); white-space: nowrap; }
+  .empty { padding: 48px 24px; text-align: center; color: var(--ink-faint); }
+  .empty .big { font-size: 14px; color: var(--ink-soft); margin-bottom: 4px; }
+  .pagehead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+  .pagehead h1 { font-size: 19px; margin: 0; }
+  .pagehead .sub { font-size: 12.5px; color: var(--ink-faint); font-family: var(--mono); }
+  .error-banner { background: #fbeeec; border: 1px solid #e6c3bd; color: var(--danger); padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 14px; }
+
+  @media (max-width: 800px) {
+    .shell { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; overflow-x: auto; padding: 14px 16px; align-items: center; }
+    .brand { display: none; }
+    .nav { flex-direction: row; }
+    .sidebar-foot { display: none; }
+    .main { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="mark">PIPELINE / 01</span>
+      <span class="name">Lead Ledger</span>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sidebar-foot">Google Sheet se live connected hai.</div>
+  </aside>
+
+  <main class="main">
+    <div class="pagehead">
+      <h1 id="page-title">Sab Leads</h1>
+      <span class="sub" id="page-sub">0 record</span>
+    </div>
+
+    <div id="setup" class="setup" style="display:none;">
+      <h3>Ek dafa setup karein</h3>
+      <p>Apps Script Web App ka deploy hua URL yahan paste karein (neeche instructions hain).</p>
+      <input id="webapp-url" placeholder="https://script.google.com/macros/s/XXXXXXXX/exec" />
+      <button class="btn btn-primary" onclick="saveConfig()">Save aur Load karein</button>
+    </div>
+
+    <div id="error" class="error-banner" style="display:none;"></div>
+
+    <div class="topbar">
+      <input class="search" id="search" placeholder="Number ya naam se search karein..." oninput="render()" />
+      <input class="tagfilter" id="tagfilter" placeholder="Tag filter (comma se)" oninput="render()" />
+      <button class="btn btn-primary" onclick="toggleAdd()">+ Numbers Add Karein</button>
+      <button class="btn" onclick="showSetup()">⚙</button>
+    </div>
+
+    <div id="addpanel" class="addpanel" style="display:none;">
+      <h3>Naye numbers Cold list mein daalein</h3>
+      <p>Ek line mein ek number. Naam bhi likhna ho to: <code>number, naam</code>. Duplicate number khud skip ho jayega.</p>
+      <textarea id="bulktext" placeholder="03001234567, Ali&#10;03011234567"></textarea>
+      <div class="addpanel-actions">
+        <button class="btn btn-primary" id="add-btn" onclick="handleAdd()">Add Karein</button>
+        <span class="addresult" id="add-result"></span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div id="table-holder"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const STATUSES = ["Cold","Leads","Interested","Not Interested","Hot","Agreement","Invoice","Closed"];
+  const STATUS_COLOR = {
+    "Cold": "var(--c-cold)",
+    "Leads": "var(--c-leads)",
+    "Interested": "var(--c-interested)",
+    "Not Interested": "var(--c-not-interested)",
+    "Hot": "var(--c-hot)",
+    "Agreement": "var(--c-agreement)",
+    "Invoice": "var(--c-invoice)",
+    "Closed": "var(--c-closed)"
+  };
+
+  let WEBAPP_URL = localStorage.getItem("leadledger_url") || "";
+  let leads = [];
+  let activeStatus = "All";
+
+  function showSetup() {
+    document.getElementById("setup").style.display = "block";
+    document.getElementById("webapp-url").value = WEBAPP_URL;
+  }
+
+  function saveConfig() {
+    const val = document.getElementById("webapp-url").value.trim();
+    if (!val) return;
+    WEBAPP_URL = val;
+    localStorage.setItem("leadledger_url", val);
+    document.getElementById("setup").style.display = "none";
+    loadLeads();
+  }
+
+  function showError(msg) {
+    const el = document.getElementById("error");
+    if (!msg) { el.style.display = "none"; return; }
+    el.style.display = "block";
+    el.textContent = msg;
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const diffMs = Date.now() - d.getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return "abhi";
+    if (mins < 60) return mins + "m pehle";
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + "h pehle";
+    const days = Math.floor(hrs / 24);
+    if (days < 30) return days + "d pehle";
+    return d.toLocaleDateString();
+  }
+
+  function renderNav() {
+    const counts = {};
+    STATUSES.forEach(s => counts[s] = 0);
+    leads.forEach(l => { counts[l.status] = (counts[l.status] || 0) + 1; });
+
+    let html = "";
+    html += navItem("All", "var(--ink-faint)", leads.length);
+    STATUSES.forEach(s => { html += navItem(s, STATUS_COLOR[s], counts[s] || 0); });
+    document.getElementById("nav").innerHTML = html;
+  }
+
+  function navItem(status, color, count) {
+    const active = activeStatus === status ? " active" : "";
+    return '<button class="nav-item' + active + '" onclick="setActiveStatus(\'' + status.replace(/'/g,"\\'") + '\')">' +
+      '<span class="dot" style="background:' + color + '"></span>' +
+      '<span class="label">' + status + '</span>' +
+      '<span class="count">' + count + '</span>' +
+      '</button>';
+  }
+
+  function setActiveStatus(s) {
+    activeStatus = s;
+    render();
+  }
+
+  function toggleAdd() {
+    const el = document.getElementById("addpanel");
+    el.style.display = el.style.display === "none" ? "block" : "none";
+  }
+
+  async function loadLeads() {
+    if (!WEBAPP_URL) { showSetup(); return; }
+    document.getElementById("table-holder").innerHTML = '<div class="empty">Load ho raha hai...</div>';
+    try {
+      const res = await fetch(WEBAPP_URL + "?action=list");
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      leads = data.leads || [];
+      showError("");
+      render();
+    } catch (e) {
+      showError("Load nahi ho saka: " + e.message);
+    }
+  }
+
+  function getAllTags() {
+    const set = new Set();
+    leads.forEach(l => {
+      (l.tags || "").split(",").map(t => t.trim()).filter(Boolean).forEach(t => set.add(t));
+    });
+    return Array.from(set).sort();
+  }
+
+  function render() {
+    renderNav();
+    const search = (document.getElementById("search").value || "").trim().toLowerCase();
+    const tagFilter = (document.getElementById("tagfilter").value || "").trim().toLowerCase();
+    const wantedTags = tagFilter.split(",").map(t => t.trim()).filter(Boolean);
+
+    const filtered = leads.filter(l => {
+      if (activeStatus !== "All" && l.status !== activeStatus) return false;
+      if (search) {
+        const hay = (l.number + " " + l.name).toLowerCase();
+        if (hay.indexOf(search) === -1) return false;
+      }
+      if (wantedTags.length) {
+        const have = (l.tags || "").toLowerCase();
+        if (!wantedTags.every(w => have.indexOf(w) !== -1)) return false;
+      }
+      return true;
+    });
+
+    document.getElementById("page-title").textContent = activeStatus === "All" ? "Sab Leads" : activeStatus;
+    document.getElementById("page-sub").textContent = filtered.length + " record";
+
+    const holder = document.getElementById("table-holder");
+    if (filtered.length === 0) {
+      holder.innerHTML = '<div class="empty"><div class="big">Koi record nahi mila</div>Filters badal kar dekhein ya naye numbers add karein.</div>';
+      return;
+    }
+
+    let html = '<table><thead><tr><th>Number</th><th>Naam</th><th>Status</th><th>Tags</th><th>Notes</th><th>Update</th></tr></thead><tbody>';
+    filtered.forEach(l => {
+      html += '<tr data-id="' + l.id + '">' +
+        '<td class="cell-number">' + escapeHtml(l.number) + '</td>' +
+        '<td class="cell-name">' + (escapeHtml(l.name) || "—") + '</td>' +
+        '<td>' + statusSelect(l) + '</td>' +
+        '<td><input class="inline-input" value="' + escapeAttr(l.tags) + '" placeholder="tag1, tag2" onblur="onFieldBlur(this,\'' + l.id + '\',\'tags\')" /></td>' +
+        '<td><input class="inline-input" value="' + escapeAttr(l.notes) + '" placeholder="note..." onblur="onFieldBlur(this,\'' + l.id + '\',\'notes\')" /></td>' +
+        '<td class="cell-updated">' + timeAgo(l.updatedAt) + '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table>';
+    holder.innerHTML = html;
+  }
+
+  function statusSelect(l) {
+    let opts = "";
+    STATUSES.forEach(s => {
+      opts += '<option value="' + s + '"' + (s === l.status ? " selected" : "") + '>' + s + '</option>';
+    });
+    return '<select class="status-select" style="color:' + STATUS_COLOR[l.status] + '" onchange="onStatusChange(this,\'' + l.id + '\')">' + opts + '</select>';
+  }
+
+  function escapeHtml(v) {
+    return String(v || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+  function escapeAttr(v) { return escapeHtml(v); }
+
+  async function onStatusChange(el, id) {
+    const status = el.value;
+    const lead = leads.find(l => l.id === id);
+    if (lead) lead.status = status;
+    await patch(id, { status: status });
+    render();
+  }
+
+  async function onFieldBlur(el, id, field) {
+    const value = el.value;
+    const lead = leads.find(l => l.id === id);
+    if (lead && lead[field] === value) return;
+    if (lead) lead[field] = value;
+    await patch(id, { [field]: value });
+  }
+
+  async function patch(id, updates) {
+    const params = new URLSearchParams({ action: "update", id: id, ...updates });
+    try {
+      const res = await fetch(WEBAPP_URL + "?" + params.toString());
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      showError("");
+    } catch (e) {
+      showError("Update save nahi hua: " + e.message);
+      loadLeads();
+    }
+  }
+
+  async function handleAdd() {
+    const text = document.getElementById("bulktext").value;
+    if (!text.trim()) return;
+    const btn = document.getElementById("add-btn");
+    btn.disabled = true;
+    btn.textContent = "Add ho raha hai...";
+    try {
+      const params = new URLSearchParams({ action: "add", numbers: text });
+      const res = await fetch(WEBAPP_URL + "?" + params.toString());
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      document.getElementById("add-result").textContent =
+        data.added.length + " add hue" + (data.skipped.length ? ", " + data.skipped.length + " duplicate skip hue" : "") + ".";
+      document.getElementById("bulktext").value = "";
+      showError("");
+      await loadLeads();
+    } catch (e) {
+      showError("Add nahi ho saka: " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Add Karein";
+    }
+  }
+
+  loadLeads();
+</script>
+</body>
+</html>
