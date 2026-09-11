@@ -3,395 +3,802 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Lead Ledger</title>
+<title>AccelRCM — Relationship Management</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link
-  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
-  rel="stylesheet"
-/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --bg: #faf9f6;
-    --panel: #ffffff;
-    --border: #e3e0d8;
-    --ink: #1c1b19;
-    --ink-soft: #6b6862;
-    --ink-faint: #9a968c;
-    --accent: #1f5e5b;
-    --accent-soft: #e4eeec;
-    --danger: #a9483f;
-
-    --c-cold: #6b7280;
-    --c-leads: #3b6e9e;
-    --c-interested: #b8842b;
-    --c-not-interested: #a9483f;
-    --c-hot: #c1502e;
-    --c-agreement: #6b5b95;
-    --c-invoice: #3e7a4e;
-    --c-closed: #55534c;
-
+    --bg: #faf9f6; --panel: #ffffff; --border: #e3e0d8; --ink: #1c1b19;
+    --ink-soft: #6b6862; --ink-faint: #9a968c; --accent: #1f5e5b; --accent-soft: #e4eeec; --danger: #a9483f;
+    --c-cold: #8a8f98; --c-textsent: #4f7cac; --c-lead: #3b6e9e; --c-interested: #b8842b;
+    --c-notinterested: #a9483f; --c-hot: #c1502e; --c-superhot: #d1361a; --c-agreement: #6b5b95;
+    --c-invoice: #3e7a4e; --c-futureinterested: #8a6d3b; --c-closed: #1f5e5b;
     --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
   }
   * { box-sizing: border-box; }
   html, body { padding: 0; margin: 0; }
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: var(--sans);
-    font-size: 14px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
   button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
-  button { cursor: pointer; }
+  button { cursor: pointer; } input, select, textarea { outline: none; }
 
-  .shell { display: grid; grid-template-columns: 236px 1fr; min-height: 100vh; }
-  .sidebar {
-    border-right: 1px solid var(--border);
-    background: var(--panel);
-    padding: 24px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
-  }
+  #setup-screen, #login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .login-box { width: 340px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 32px 28px; text-align: center; }
+  .login-box .mark { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; color: var(--accent); }
+  .login-box h1 { font-size: 19px; margin: 6px 0 20px; }
+  .login-box p.hint { font-size: 12px; color: var(--ink-soft); margin: -8px 0 16px; text-align: left; }
+  .login-box input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; background: var(--bg); text-align: left; }
+  .login-box button { width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 600; margin-top: 6px; }
+  .login-err { color: var(--danger); font-size: 12.5px; margin-top: 8px; min-height: 16px; }
+
+  .shell { display: none; grid-template-columns: 236px 1fr; min-height: 100vh; }
+  .shell.show { display: grid; }
+  .sidebar { border-right: 1px solid var(--border); background: var(--panel); padding: 24px 16px; display: flex; flex-direction: column; gap: 22px; }
   .brand { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
-  .brand .mark { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; color: var(--accent); }
-  .brand .name { font-size: 17px; font-weight: 600; }
+  .brand .mark { font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; color: var(--accent); }
+  .brand .name { font-size: 16px; font-weight: 700; line-height: 1.25; }
   .nav { display: flex; flex-direction: column; gap: 2px; }
-  .nav-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 8px; border-radius: 6px; border: none;
-    background: transparent; text-align: left; color: var(--ink-soft); font-size: 13.5px; width: 100%;
-  }
+  .nav-section-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); padding: 10px 8px 2px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 6px; border: none; background: transparent; text-align: left; color: var(--ink-soft); font-size: 13px; width: 100%; }
   .nav-item:hover { background: var(--bg); color: var(--ink); }
   .nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
   .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
-  .nav-item .label { flex: 1; }
-  .nav-item .count { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+  .nav-item .label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nav-item .count { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); }
   .nav-item.active .count { color: var(--accent); }
-  .sidebar-foot { margin-top: auto; padding: 0 8px; font-size: 11.5px; color: var(--ink-faint); }
+  .sidebar-foot { margin-top: auto; padding: 0 8px; display: flex; flex-direction: column; gap: 6px; }
+  .sidebar-foot .who { font-size: 11.5px; color: var(--ink-faint); }
+  .logout-btn { font-size: 12px; color: var(--ink-faint); background: none; border: none; padding: 4px 0; text-align: left; }
+  .logout-btn:hover { color: var(--danger); }
 
-  .main { padding: 24px 32px 48px; max-width: 1180px; }
-  .topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
-  .search, .tagfilter {
-    padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel);
-  }
-  .search { flex: 1; min-width: 200px; }
-  .tagfilter { width: 180px; }
-  .btn { padding: 9px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); font-weight: 500; }
+  .main { padding: 22px 28px 60px; max-width: 1280px; }
+  .pagehead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; gap: 10px; flex-wrap: wrap; }
+  .pagehead h1 { font-size: 19px; margin: 0; }
+  .pagehead .sub { font-size: 12px; color: var(--ink-faint); font-family: var(--mono); }
+
+  .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .search-wrap { position: relative; flex: 1; min-width: 220px; }
+  .search { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); }
+  .btn { padding: 9px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); font-weight: 500; white-space: nowrap; }
   .btn:hover { border-color: var(--ink-faint); }
   .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .btn-primary:hover { background: #184b48; }
+  .btn-danger { color: var(--danger); border-color: #e6c3bd; }
+  .btn-danger:hover { background: #fbeeec; }
+  .btn-sm { padding: 5px 10px; font-size: 12.5px; border-radius: 5px; }
 
-  .addpanel, .setup { border: 1px solid var(--border); background: var(--panel); border-radius: 8px; padding: 16px; margin-bottom: 18px; }
-  .addpanel h3, .setup h3 { margin: 0 0 4px; font-size: 14px; }
-  .addpanel p, .setup p { margin: 0 0 10px; color: var(--ink-soft); font-size: 12.5px; }
-  .addpanel textarea {
-    width: 100%; min-height: 110px; padding: 10px 12px; border: 1px solid var(--border);
-    border-radius: 6px; font-family: var(--mono); font-size: 13px; resize: vertical; background: var(--bg);
-  }
-  .addpanel-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-  .addresult { font-size: 12.5px; color: var(--ink-soft); }
-
-  .setup input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--mono); font-size: 12.5px; background: var(--bg); margin-bottom: 10px; }
+  .panel { border: 1px solid var(--border); background: var(--panel); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .panel h3 { margin: 0 0 4px; font-size: 14px; }
+  .panel p { margin: 0 0 10px; color: var(--ink-soft); font-size: 12.5px; }
+  .panel textarea { width: 100%; min-height: 130px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--mono); font-size: 12.5px; resize: vertical; background: var(--bg); }
+  .panel-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .panel-note { font-size: 12.5px; color: var(--ink-soft); }
+  .import-map { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .import-map label { font-size: 12px; color: var(--ink-soft); display: flex; flex-direction: column; gap: 4px; }
+  .import-map select, .import-map input { padding: 7px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
 
   .table-wrap { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); overflow: hidden; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
-  thead th { text-align: left; font-size: 11.5px; font-weight: 600; color: var(--ink-faint); padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg); white-space: nowrap; }
-  tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  thead th { text-align: left; font-size: 11px; font-weight: 600; color: var(--ink-faint); padding: 9px 12px; border-bottom: 1px solid var(--border); background: var(--bg); white-space: nowrap; }
+  tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
   tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover { background: #fbfaf7; }
-  .cell-number { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
-  .cell-name { color: var(--ink-soft); }
-  .status-select { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); font-size: 12.5px; font-weight: 500; }
-  .inline-input { width: 100%; border: 1px solid transparent; background: transparent; padding: 6px 8px; border-radius: 6px; font-size: 13px; min-width: 110px; }
-  .inline-input:hover { border-color: var(--border); }
-  .inline-input:focus { outline: none; border-color: var(--accent); background: var(--panel); }
-  .cell-updated { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); white-space: nowrap; }
+  tbody tr:hover { background: #fbfaf7; cursor: pointer; }
+  .cell-mono { font-family: var(--mono); font-size: 12.5px; }
+  .cell-muted { color: var(--ink-faint); }
+  .status-pill { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 600; color: #fff; }
+  .amt { font-family: var(--mono); font-size: 12.5px; }
+  .row-actions { display: flex; gap: 4px; }
+  .icon-btn { border: 1px solid var(--border); background: var(--panel); border-radius: 5px; padding: 4px 7px; font-size: 12px; }
+  .icon-btn:hover { border-color: var(--accent); }
   .empty { padding: 48px 24px; text-align: center; color: var(--ink-faint); }
   .empty .big { font-size: 14px; color: var(--ink-soft); margin-bottom: 4px; }
-  .pagehead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
-  .pagehead h1 { font-size: 19px; margin: 0; }
-  .pagehead .sub { font-size: 12.5px; color: var(--ink-faint); font-family: var(--mono); }
-  .error-banner { background: #fbeeec; border: 1px solid #e6c3bd; color: var(--danger); padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 14px; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 10px; margin-bottom: 18px; }
+  .stat-card { border: 1px solid var(--border); background: var(--panel); border-radius: 8px; padding: 14px 16px; }
+  .stat-card .num { font-family: var(--mono); font-size: 22px; font-weight: 600; }
+  .stat-card .lbl { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+  .money-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 10px; margin-bottom: 18px; }
+  .money-card { border: 1px solid var(--border); background: var(--panel); border-radius: 8px; padding: 16px; }
+  .money-card .num { font-family: var(--mono); font-size: 24px; font-weight: 700; }
+  .money-card.pending .num { color: var(--c-invoice); }
+  .money-card.closed .num { color: var(--accent); }
+  .month-table th, .month-table td { text-align: right; }
+  .month-table th:first-child, .month-table td:first-child { text-align: left; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,18,15,0.45); align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; z-index: 50; }
+  .modal-overlay.show { display: flex; }
+  .modal { width: 100%; max-width: 520px; background: var(--panel); border-radius: 10px; border: 1px solid var(--border); padding: 22px; max-height: calc(100vh - 80px); overflow-y: auto; }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .modal-head h2 { font-size: 16px; margin: 0; }
+  .modal-close { border: none; background: none; font-size: 18px; color: var(--ink-faint); }
+  .modal-close:hover { color: var(--ink); }
+  .modal-field { margin-bottom: 12px; }
+  .modal-field label { display: block; font-size: 11.5px; color: var(--ink-faint); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+  .modal-field input, .modal-field select, .modal-field textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
+  .modal-field textarea { min-height: 70px; resize: vertical; }
+  .modal-quickrow { display: flex; gap: 8px; margin: 4px 0 16px; }
+  .modal-quickrow .btn { flex: 1; text-align: center; }
+  .modal-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; }
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; z-index: 100; display: none; }
+  .toast.show { display: block; }
+
+  .fields-manager-row, .user-row { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; background: var(--bg); }
+  .fields-manager-row .fname, .user-row .uname { flex: 1; font-size: 13px; }
+  .fields-manager-row .ftag { font-size: 10.5px; color: var(--ink-faint); font-family: var(--mono); }
 
   @media (max-width: 800px) {
     .shell { grid-template-columns: 1fr; }
-    .sidebar { border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; overflow-x: auto; padding: 14px 16px; align-items: center; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; overflow-x: auto; padding: 12px 14px; align-items: center; gap: 12px; }
     .brand { display: none; }
     .nav { flex-direction: row; }
+    .nav-section-label { display: none; }
     .sidebar-foot { display: none; }
-    .main { padding: 18px; }
+    .main { padding: 16px; }
   }
 </style>
 </head>
 <body>
 
-<div class="shell">
+<div id="setup-screen" style="display:none;">
+  <div class="login-box">
+    <div class="mark">ACCELRCM</div>
+    <h1>Connect Supabase</h1>
+    <p class="hint">Ek dafa setup: Supabase Project URL aur anon public key paste karo (Project Settings → API se milegi).</p>
+    <input id="su-url" placeholder="https://xxxx.supabase.co" />
+    <input id="su-key" placeholder="anon public key" />
+    <button onclick="saveSupabaseConfig()">Save & Continue</button>
+    <div class="login-err" id="setup-err"></div>
+  </div>
+</div>
+
+<div id="login-screen" style="display:none;">
+  <div class="login-box">
+    <div class="mark">ACCELRCM</div>
+    <h1>Relationship Management</h1>
+    <input id="login-user" placeholder="Username" autocomplete="username" />
+    <input id="login-pass" type="password" placeholder="Password" autocomplete="current-password" />
+    <button onclick="doLogin()">Log In</button>
+    <div class="login-err" id="login-err"></div>
+    <button class="logout-btn" style="margin-top:14px;" onclick="showSetup(true)">⚙ Change Supabase connection</button>
+  </div>
+</div>
+
+<div class="shell" id="shell">
   <aside class="sidebar">
-    <div class="brand">
-      <span class="mark">PIPELINE / 01</span>
-      <span class="name">Lead Ledger</span>
-    </div>
+    <div class="brand"><span class="mark">ACCELRCM</span><span class="name">Relationship Management</span></div>
     <nav class="nav" id="nav"></nav>
-    <div class="sidebar-foot">Google Sheet se live connected hai.</div>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label"></span>
+      <button class="logout-btn" onclick="doLogout()">Log out</button>
+    </div>
   </aside>
 
   <main class="main">
     <div class="pagehead">
-      <h1 id="page-title">Sab Leads</h1>
-      <span class="sub" id="page-sub">0 record</span>
+      <h1 id="page-title">Dashboard</h1>
+      <span class="sub" id="page-sub"></span>
     </div>
 
-    <div id="setup" class="setup" style="display:none;">
-      <h3>Ek dafa setup karein</h3>
-      <p>Apps Script Web App ka deploy hua URL yahan paste karein (neeche instructions hain).</p>
-      <input id="webapp-url" placeholder="https://script.google.com/macros/s/XXXXXXXX/exec" />
-      <button class="btn btn-primary" onclick="saveConfig()">Save aur Load karein</button>
-    </div>
+    <div id="view-dashboard"></div>
 
-    <div id="error" class="error-banner" style="display:none;"></div>
-
-    <div class="topbar">
-      <input class="search" id="search" placeholder="Number ya naam se search karein..." oninput="render()" />
-      <input class="tagfilter" id="tagfilter" placeholder="Tag filter (comma se)" oninput="render()" />
-      <button class="btn btn-primary" onclick="toggleAdd()">+ Numbers Add Karein</button>
-      <button class="btn" onclick="showSetup()">⚙</button>
-    </div>
-
-    <div id="addpanel" class="addpanel" style="display:none;">
-      <h3>Naye numbers Cold list mein daalein</h3>
-      <p>Ek line mein ek number. Naam bhi likhna ho to: <code>number, naam</code>. Duplicate number khud skip ho jayega.</p>
-      <textarea id="bulktext" placeholder="03001234567, Ali&#10;03011234567"></textarea>
-      <div class="addpanel-actions">
-        <button class="btn btn-primary" id="add-btn" onclick="handleAdd()">Add Karein</button>
-        <span class="addresult" id="add-result"></span>
+    <div id="view-leads" style="display:none;">
+      <div class="topbar">
+        <div class="search-wrap">
+          <input class="search" id="search" list="search-suggest" placeholder="Search by NPI, name, phone, email..." oninput="resetPageAndRender()" />
+          <datalist id="search-suggest"></datalist>
+        </div>
+        <button class="btn" onclick="togglePanel('filterpanel')">🔎 Filters</button>
+        <button class="btn btn-primary" onclick="togglePanel('addpanel')">+ Upload Contacts</button>
+        <button class="btn" onclick="togglePanel('fieldspanel')">⚙ Manage Fields</button>
+        <button class="btn" onclick="togglePanel('userspanel')">👤 Manage Users</button>
+        <button class="btn" onclick="exportCsv()">⬇ Export CSV</button>
       </div>
-    </div>
 
-    <div class="table-wrap">
-      <div id="table-holder"></div>
+      <div id="filterpanel" class="panel" style="display:none;">
+        <h3>Filters</h3>
+        <div class="import-map" style="grid-template-columns: repeat(auto-fit,minmax(160px,1fr));">
+          <label>Email
+            <select id="f-email" onchange="resetPageAndRender()">
+              <option value="">Any</option><option value="has">Has email</option><option value="missing">Missing email</option>
+            </select>
+          </label>
+          <label>Phone
+            <select id="f-phone" onchange="resetPageAndRender()">
+              <option value="">Any</option><option value="has">Has phone</option><option value="missing">Missing phone</option>
+            </select>
+          </label>
+          <label>Amount min ($)<input id="f-amt-min" type="number" placeholder="0" oninput="resetPageAndRender()" /></label>
+          <label>Amount max ($)<input id="f-amt-max" type="number" placeholder="999999" oninput="resetPageAndRender()" /></label>
+          <label>Updated from<input id="f-date-from" type="date" onchange="resetPageAndRender()" /></label>
+          <label>Updated to<input id="f-date-to" type="date" onchange="resetPageAndRender()" /></label>
+        </div>
+        <div class="panel-actions"><button class="btn btn-sm" onclick="clearFilters()">Clear Filters</button></div>
+      </div>
+
+      <div id="addpanel" class="panel" style="display:none;">
+        <h3>Bulk upload (copy-paste from Excel/Sheet)</h3>
+        <p>Paste rows below — one contact per line, columns separated by <b>Tab</b> or comma. NPI is the unique key: contacts with an NPI already in the system are skipped automatically.</p>
+        <div class="import-map" id="import-map"></div>
+        <textarea id="bulktext" placeholder="1234567890	John Smith	john@clinic.com	5551234567"></textarea>
+        <div class="panel-actions">
+          <button class="btn btn-primary" onclick="handleAdd()">Add to Cold List</button>
+          <span class="panel-note" id="add-result"></span>
+        </div>
+      </div>
+
+      <div id="fieldspanel" class="panel" style="display:none;">
+        <h3>Manage fields</h3>
+        <p>Reorder, add, or remove fields. NPI and Status always stay (NPI is the dedup key).</p>
+        <div id="fields-list"></div>
+        <div class="panel-actions">
+          <input id="new-field-name" placeholder="New field name e.g. Website" style="flex:1;" />
+          <button class="btn" onclick="addField()">+ Add Field</button>
+        </div>
+      </div>
+
+      <div id="userspanel" class="panel" style="display:none;">
+        <h3>Manage users</h3>
+        <p>Create sub-accounts with their own username/password — same full access to this CRM.</p>
+        <div id="users-list"></div>
+        <div class="panel-actions">
+          <input id="new-user-name" placeholder="Username" style="flex:1;" />
+          <input id="new-user-pass" placeholder="Password" style="flex:1;" />
+          <button class="btn" onclick="addUser()">+ Add User</button>
+        </div>
+      </div>
+
+      <div id="bulkbar" class="panel" style="display:none; padding:10px 16px; align-items:center; gap:12px;"></div>
+
+      <div class="table-wrap"><div id="table-holder"></div></div>
+      <div id="pagination" style="display:flex; align-items:center; justify-content:center; gap:10px; margin-top:14px;"></div>
     </div>
   </main>
 </div>
 
+<div class="modal-overlay" id="modal-overlay"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
+
 <script>
-  const STATUSES = ["Cold","Leads","Interested","Not Interested","Hot","Agreement","Invoice","Closed"];
-  const STATUS_COLOR = {
-    "Cold": "var(--c-cold)",
-    "Leads": "var(--c-leads)",
-    "Interested": "var(--c-interested)",
-    "Not Interested": "var(--c-not-interested)",
-    "Hot": "var(--c-hot)",
-    "Agreement": "var(--c-agreement)",
-    "Invoice": "var(--c-invoice)",
-    "Closed": "var(--c-closed)"
+/* ================= CONSTANTS ================= */
+const STATUSES = ["Cold","Text Sent","Lead","Interested","Not Interested","Hot","Super Hot","Agreement","Invoice","Future Interested","Closed"];
+const STATUS_KEY = { "Cold":"cold","Text Sent":"textsent","Lead":"lead","Interested":"interested","Not Interested":"notinterested","Hot":"hot","Super Hot":"superhot","Agreement":"agreement","Invoice":"invoice","Future Interested":"futureinterested","Closed":"closed" };
+const AMOUNT_STATUSES = ["Agreement","Invoice","Closed"];
+const CORE_KEYS = ["npi","name","email","phone"];
+const DEFAULT_FIELDS = [ { key:"npi", label:"NPI", locked:true }, { key:"name", label:"Name", locked:false }, { key:"email", label:"Email", locked:false }, { key:"phone", label:"Phone", locked:false } ];
+
+const LS_SB_URL = "accelrcm_sb_url";
+const LS_SB_KEY = "accelrcm_sb_key";
+const SS_AUTH = "accelrcm_auth_user";
+
+const PAGE_SIZE = 100;
+let currentPage = 1;
+let selectedIds = new Set();
+let currentPageItems = [];
+let contacts = [];
+let fields = [];
+let users = [];
+let activeStatus = "Dashboard";
+let currentModalId = null;
+let sb = null;
+let currentUser = null;
+
+/* ================= SUPABASE SETUP ================= */
+function showSetup(fromLogin) {
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("setup-screen").style.display = "flex";
+  document.getElementById("su-url").value = localStorage.getItem(LS_SB_URL) || "";
+  document.getElementById("su-key").value = localStorage.getItem(LS_SB_KEY) || "";
+}
+function saveSupabaseConfig() {
+  const url = document.getElementById("su-url").value.trim();
+  const key = document.getElementById("su-key").value.trim();
+  if (!url || !key) { document.getElementById("setup-err").textContent = "Dono fields bharo."; return; }
+  localStorage.setItem(LS_SB_URL, url);
+  localStorage.setItem(LS_SB_KEY, key);
+  initSupabase();
+  document.getElementById("setup-screen").style.display = "none";
+  document.getElementById("login-screen").style.display = "flex";
+}
+function initSupabase() {
+  const url = localStorage.getItem(LS_SB_URL);
+  const key = localStorage.getItem(LS_SB_KEY);
+  if (!url || !key) return false;
+  sb = window.supabase.createClient(url, key);
+  return true;
+}
+
+/* ================= AUTH ================= */
+async function doLogin() {
+  const u = document.getElementById("login-user").value.trim();
+  const p = document.getElementById("login-pass").value;
+  const errEl = document.getElementById("login-err");
+  errEl.textContent = "";
+  if (!u || !p) { errEl.textContent = "Username aur password dono bharo."; return; }
+  try {
+    const { data, error } = await sb.from("app_users").select("*").eq("username", u).eq("password", p).limit(1);
+    if (error) throw error;
+    if (!data || !data.length) { errEl.textContent = "Invalid username or password."; return; }
+    currentUser = data[0];
+    sessionStorage.setItem(SS_AUTH, JSON.stringify(currentUser));
+    boot();
+  } catch (e) {
+    errEl.textContent = "Connection error: " + e.message;
+  }
+}
+function doLogout() {
+  sessionStorage.removeItem(SS_AUTH);
+  currentUser = null;
+  document.getElementById("shell").classList.remove("show");
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("login-user").value = "";
+  document.getElementById("login-pass").value = "";
+}
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("login-pass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+  document.getElementById("login-user").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+
+  if (!initSupabase()) { showSetup(); return; }
+  const savedUser = sessionStorage.getItem(SS_AUTH);
+  if (savedUser) { currentUser = JSON.parse(savedUser); boot(); }
+  else document.getElementById("login-screen").style.display = "flex";
+});
+
+/* ================= DATA HELPERS (row <-> js object) ================= */
+function rowToContact(r) {
+  return {
+    id: r.id, npi: r.npi || "", name: r.name || "", email: r.email || "", phone: r.phone || "",
+    status: r.status || "Cold", amount: r.amount, notes: r.notes || "",
+    customFields: r.custom_fields || {}, statusLog: r.status_log || [],
+    createdAt: r.created_at, updatedAt: r.updated_at
   };
+}
+function contactToRow(c) {
+  return { id: c.id, npi: c.npi || null, name: c.name || null, email: c.email || null, phone: c.phone || null,
+    status: c.status, amount: c.amount === "" || c.amount == null ? null : c.amount, notes: c.notes || "",
+    custom_fields: c.customFields || {}, status_log: c.statusLog || [], updated_at: c.updatedAt };
+}
+function getFieldValue(c, key) { return CORE_KEYS.includes(key) ? (c[key] || "") : ((c.customFields || {})[key] || ""); }
+function setFieldValueLocal(c, key, value) {
+  if (CORE_KEYS.includes(key)) c[key] = value;
+  else { c.customFields = c.customFields || {}; c.customFields[key] = value; }
+}
 
-  let WEBAPP_URL = localStorage.getItem("leadledger_url") || "";
-  let leads = [];
-  let activeStatus = "All";
+/* ================= BOOT ================= */
+async function boot() {
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("setup-screen").style.display = "none";
+  document.getElementById("shell").classList.add("show");
+  document.getElementById("who-label").textContent = "Logged in as " + currentUser.username;
 
-  function showSetup() {
-    document.getElementById("setup").style.display = "block";
-    document.getElementById("webapp-url").value = WEBAPP_URL;
+  await Promise.all([loadFields(), loadContacts(), loadUsers()]);
+  renderImportMap();
+  setActiveStatus("Dashboard");
+}
+
+async function loadFields() {
+  const { data, error } = await sb.from("field_config").select("*").eq("id", 1).limit(1);
+  if (error || !data || !data.length) {
+    fields = JSON.parse(JSON.stringify(DEFAULT_FIELDS));
+    await sb.from("field_config").upsert({ id: 1, fields });
+  } else {
+    fields = data[0].fields;
   }
+}
+async function saveFields() { await sb.from("field_config").upsert({ id: 1, fields }); }
 
-  function saveConfig() {
-    const val = document.getElementById("webapp-url").value.trim();
-    if (!val) return;
-    WEBAPP_URL = val;
-    localStorage.setItem("leadledger_url", val);
-    document.getElementById("setup").style.display = "none";
-    loadLeads();
-  }
+async function loadContacts() {
+  const { data, error } = await sb.from("contacts").select("*").order("updated_at", { ascending: false });
+  if (error) { showToast("Load failed: " + error.message); contacts = []; return; }
+  contacts = (data || []).map(rowToContact);
+}
+async function loadUsers() {
+  const { data, error } = await sb.from("app_users").select("id, username, role, created_at").order("created_at");
+  users = error ? [] : (data || []);
+}
 
-  function showError(msg) {
-    const el = document.getElementById("error");
-    if (!msg) { el.style.display = "none"; return; }
-    el.style.display = "block";
-    el.textContent = msg;
-  }
-
-  function timeAgo(iso) {
-    if (!iso) return "";
-    const d = new Date(iso);
-    const diffMs = Date.now() - d.getTime();
-    const mins = Math.floor(diffMs / 60000);
-    if (mins < 1) return "abhi";
-    if (mins < 60) return mins + "m pehle";
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return hrs + "h pehle";
-    const days = Math.floor(hrs / 24);
-    if (days < 30) return days + "d pehle";
-    return d.toLocaleDateString();
-  }
-
-  function renderNav() {
-    const counts = {};
-    STATUSES.forEach(s => counts[s] = 0);
-    leads.forEach(l => { counts[l.status] = (counts[l.status] || 0) + 1; });
-
-    let html = "";
-    html += navItem("All", "var(--ink-faint)", leads.length);
-    STATUSES.forEach(s => { html += navItem(s, STATUS_COLOR[s], counts[s] || 0); });
-    document.getElementById("nav").innerHTML = html;
-  }
-
-  function navItem(status, color, count) {
-    const active = activeStatus === status ? " active" : "";
-    return '<button class="nav-item' + active + '" onclick="setActiveStatus(\'' + status.replace(/'/g,"\\'") + '\')">' +
-      '<span class="dot" style="background:' + color + '"></span>' +
-      '<span class="label">' + status + '</span>' +
-      '<span class="count">' + count + '</span>' +
-      '</button>';
-  }
-
-  function setActiveStatus(s) {
-    activeStatus = s;
+/* ================= NAV ================= */
+function renderNav() {
+  const counts = {};
+  STATUSES.forEach(s => counts[s] = 0);
+  contacts.forEach(c => { counts[c.status] = (counts[c.status] || 0) + 1; });
+  let html = '<button class="nav-item' + (activeStatus === "Dashboard" ? " active" : "") + '" onclick="setActiveStatus(\'Dashboard\')"><span class="dot" style="background:var(--ink-faint)"></span><span class="label">Dashboard</span></button>';
+  html += '<div class="nav-section-label">Leads</div>';
+  html += navItem("All", "var(--ink-faint)", contacts.length);
+  STATUSES.forEach(s => { html += navItem(s, "var(--c-" + STATUS_KEY[s] + ")", counts[s] || 0); });
+  document.getElementById("nav").innerHTML = html;
+}
+function navItem(status, color, count) {
+  const active = activeStatus === status ? " active" : "";
+  return '<button class="nav-item' + active + '" onclick="setActiveStatus(\'' + status.replace(/'/g,"\\'") + '\')"><span class="dot" style="background:' + color + '"></span><span class="label">' + status + '</span><span class="count">' + count + '</span></button>';
+}
+function setActiveStatus(s) {
+  activeStatus = s; currentPage = 1; selectedIds.clear();
+  if (s === "Dashboard") {
+    document.getElementById("view-dashboard").style.display = "block";
+    document.getElementById("view-leads").style.display = "none";
+    document.getElementById("page-title").textContent = "Dashboard";
+    document.getElementById("page-sub").textContent = "";
+    renderDashboard();
+  } else {
+    document.getElementById("view-dashboard").style.display = "none";
+    document.getElementById("view-leads").style.display = "block";
+    document.getElementById("page-title").textContent = s === "All" ? "All Leads" : s;
     render();
   }
+  renderNav();
+}
 
-  function toggleAdd() {
-    const el = document.getElementById("addpanel");
-    el.style.display = el.style.display === "none" ? "block" : "none";
-  }
+/* ================= FIELD MANAGEMENT ================= */
+function renderImportMap() {
+  document.getElementById("import-map").innerHTML =
+    '<div style="grid-column:1/-1; font-size:12px; color:var(--ink-soft); margin-bottom:2px;">Paste column order (must match this order): <b>' +
+    fields.map(f => escapeHtml(f.label)).join(" → ") + '</b></div>';
+}
+function renderFieldsManager() {
+  let html = "";
+  fields.forEach((f, i) => {
+    html += '<div class="fields-manager-row"><span class="fname">' + escapeHtml(f.label) + (f.locked ? ' <span class="ftag">(locked)</span>' : '') + '</span>' +
+      '<button class="icon-btn" onclick="moveField(' + i + ',-1)" ' + (i===0?"disabled":"") + '>↑</button>' +
+      '<button class="icon-btn" onclick="moveField(' + i + ',1)" ' + (i===fields.length-1?"disabled":"") + '>↓</button>' +
+      (f.locked ? '' : '<button class="icon-btn btn-danger" onclick="removeField(\'' + f.key + '\')">✕</button>') + '</div>';
+  });
+  document.getElementById("fields-list").innerHTML = html;
+}
+async function moveField(i, dir) {
+  const j = i + dir; if (j < 0 || j >= fields.length) return;
+  [fields[i], fields[j]] = [fields[j], fields[i]];
+  await saveFields(); renderFieldsManager(); renderImportMap(); render();
+}
+async function removeField(key) {
+  fields = fields.filter(f => f.key !== key);
+  await saveFields(); renderFieldsManager(); renderImportMap(); render();
+}
+async function addField() {
+  const input = document.getElementById("new-field-name");
+  const label = input.value.trim(); if (!label) return;
+  const key = "cf_" + label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") + "_" + Date.now().toString(36).slice(-4);
+  fields.push({ key, label, locked: false });
+  await saveFields(); input.value = ""; renderFieldsManager(); renderImportMap(); render();
+}
 
-  async function loadLeads() {
-    if (!WEBAPP_URL) { showSetup(); return; }
-    document.getElementById("table-holder").innerHTML = '<div class="empty">Load ho raha hai...</div>';
-    try {
-      const res = await fetch(WEBAPP_URL + "?action=list");
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      leads = data.leads || [];
-      showError("");
-      render();
-    } catch (e) {
-      showError("Load nahi ho saka: " + e.message);
-    }
-  }
+/* ================= USER MANAGEMENT ================= */
+function renderUsersManager() {
+  let html = "";
+  users.forEach(u => {
+    html += '<div class="user-row"><span class="uname">' + escapeHtml(u.username) + (u.role === "admin" ? ' <span class="ftag" style="font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);">(admin)</span>' : '') + '</span>' +
+      (u.username === "admin" ? '' : '<button class="icon-btn btn-danger" onclick="removeUser(\'' + u.id + '\')">✕</button>') + '</div>';
+  });
+  document.getElementById("users-list").innerHTML = html || '<div class="panel-note">No sub-users yet.</div>';
+}
+async function addUser() {
+  const uname = document.getElementById("new-user-name").value.trim();
+  const upass = document.getElementById("new-user-pass").value;
+  if (!uname || !upass) { showToast("Username and password required"); return; }
+  const id = "u_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  const { error } = await sb.from("app_users").insert({ id, username: uname, password: upass, role: "member" });
+  if (error) { showToast("Could not add user: " + error.message); return; }
+  document.getElementById("new-user-name").value = ""; document.getElementById("new-user-pass").value = "";
+  await loadUsers(); renderUsersManager(); showToast("User added");
+}
+async function removeUser(id) {
+  if (!confirm("Remove this user's access?")) return;
+  await sb.from("app_users").delete().eq("id", id);
+  await loadUsers(); renderUsersManager(); showToast("User removed");
+}
 
-  function getAllTags() {
-    const set = new Set();
-    leads.forEach(l => {
-      (l.tags || "").split(",").map(t => t.trim()).filter(Boolean).forEach(t => set.add(t));
+function togglePanel(id) {
+  ["addpanel","fieldspanel","filterpanel","userspanel"].forEach(pid => {
+    const el = document.getElementById(pid);
+    if (pid === id) {
+      el.style.display = el.style.display === "none" ? "block" : "none";
+      if (pid === "fieldspanel" && el.style.display === "block") renderFieldsManager();
+      if (pid === "userspanel" && el.style.display === "block") renderUsersManager();
+    } else el.style.display = "none";
+  });
+}
+function clearFilters() {
+  ["f-email","f-phone"].forEach(id => document.getElementById(id).value = "");
+  ["f-amt-min","f-amt-max","f-date-from","f-date-to"].forEach(id => document.getElementById(id).value = "");
+  currentPage = 1; render();
+}
+function resetPageAndRender() { currentPage = 1; render(); }
+
+/* ================= IMPORT / BULK ADD ================= */
+function parseLine(line) { return line.indexOf("\t") !== -1 ? line.split("\t").map(p=>p.trim()) : line.split(",").map(p=>p.trim()); }
+
+async function handleAdd() {
+  const text = document.getElementById("bulktext").value;
+  if (!text.trim()) return;
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const existingNpis = new Set(contacts.filter(c => c.npi).map(c => String(c.npi).trim()));
+  let added = 0, skipped = 0, noNpi = 0;
+  const now = new Date().toISOString();
+  const rowsToInsert = [];
+
+  lines.forEach(line => {
+    const parts = parseLine(line);
+    const record = { customFields: {} };
+    fields.forEach((f, i) => {
+      const val = parts[i] !== undefined ? parts[i] : "";
+      if (CORE_KEYS.includes(f.key)) record[f.key] = val; else record.customFields[f.key] = val;
     });
-    return Array.from(set).sort();
+    const npi = (record.npi || "").trim();
+    if (npi) { if (existingNpis.has(npi)) { skipped++; return; } existingNpis.add(npi); } else noNpi++;
+
+    const contact = { id: "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+      npi: record.npi || "", name: record.name || "", email: record.email || "", phone: record.phone || "",
+      status: "Cold", amount: null, notes: "", customFields: record.customFields, statusLog: [{status:"Cold", at: now}],
+      createdAt: now, updatedAt: now };
+    rowsToInsert.push(contactToRow(contact) && { ...contactToRow(contact), created_at: now });
+    added++;
+  });
+
+  if (rowsToInsert.length) {
+    const { error } = await sb.from("contacts").upsert(rowsToInsert, { onConflict: "npi", ignoreDuplicates: true });
+    if (error) { showToast("Upload error: " + error.message); return; }
   }
+  document.getElementById("add-result").textContent = added + " added" + (skipped ? ", " + skipped + " duplicate NPI skipped" : "") + (noNpi ? " (" + noNpi + " had no NPI)" : "") + ".";
+  document.getElementById("bulktext").value = "";
+  await loadContacts();
+  setActiveStatus(activeStatus === "Dashboard" ? "All" : activeStatus);
+}
 
-  function render() {
-    renderNav();
-    const search = (document.getElementById("search").value || "").trim().toLowerCase();
-    const tagFilter = (document.getElementById("tagfilter").value || "").trim().toLowerCase();
-    const wantedTags = tagFilter.split(",").map(t => t.trim()).filter(Boolean);
+/* ================= SEARCH / RENDER TABLE ================= */
+function buildSuggestions(term) {
+  const dl = document.getElementById("search-suggest");
+  if (!term) { dl.innerHTML = ""; return; }
+  const t = term.toLowerCase(); const set = new Set();
+  contacts.forEach(c => { [c.npi, c.name, c.phone, c.email].forEach(v => { if (v && String(v).toLowerCase().indexOf(t) !== -1) set.add(v); }); });
+  dl.innerHTML = Array.from(set).slice(0, 12).map(v => '<option value="' + escapeAttr(v) + '">').join("");
+}
 
-    const filtered = leads.filter(l => {
-      if (activeStatus !== "All" && l.status !== activeStatus) return false;
-      if (search) {
-        const hay = (l.number + " " + l.name).toLowerCase();
-        if (hay.indexOf(search) === -1) return false;
-      }
-      if (wantedTags.length) {
-        const have = (l.tags || "").toLowerCase();
-        if (!wantedTags.every(w => have.indexOf(w) !== -1)) return false;
-      }
-      return true;
-    });
+function render() {
+  renderNav();
+  const search = (document.getElementById("search").value || "").trim().toLowerCase();
+  buildSuggestions(search);
 
-    document.getElementById("page-title").textContent = activeStatus === "All" ? "Sab Leads" : activeStatus;
-    document.getElementById("page-sub").textContent = filtered.length + " record";
+  const fEmail = document.getElementById("f-email") ? document.getElementById("f-email").value : "";
+  const fPhone = document.getElementById("f-phone") ? document.getElementById("f-phone").value : "";
+  const fAmtMin = document.getElementById("f-amt-min") ? parseFloat(document.getElementById("f-amt-min").value) : NaN;
+  const fAmtMax = document.getElementById("f-amt-max") ? parseFloat(document.getElementById("f-amt-max").value) : NaN;
+  const fDateFrom = document.getElementById("f-date-from") ? document.getElementById("f-date-from").value : "";
+  const fDateTo = document.getElementById("f-date-to") ? document.getElementById("f-date-to").value : "";
 
-    const holder = document.getElementById("table-holder");
-    if (filtered.length === 0) {
-      holder.innerHTML = '<div class="empty"><div class="big">Koi record nahi mila</div>Filters badal kar dekhein ya naye numbers add karein.</div>';
-      return;
-    }
+  const filtered = contacts.filter(c => {
+    if (activeStatus !== "All" && c.status !== activeStatus) return false;
+    if (search) { const hay = [c.npi, c.name, c.phone, c.email].join(" ").toLowerCase(); if (hay.indexOf(search) === -1) return false; }
+    if (fEmail === "has" && !c.email) return false;
+    if (fEmail === "missing" && c.email) return false;
+    if (fPhone === "has" && !c.phone) return false;
+    if (fPhone === "missing" && c.phone) return false;
+    if (!isNaN(fAmtMin) && !(parseFloat(c.amount) >= fAmtMin)) return false;
+    if (!isNaN(fAmtMax) && !(parseFloat(c.amount) <= fAmtMax)) return false;
+    if (fDateFrom || fDateTo) { const d = c.updatedAt ? c.updatedAt.slice(0,10) : ""; if (fDateFrom && d < fDateFrom) return false; if (fDateTo && d > fDateTo) return false; }
+    return true;
+  }).sort((a,b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
 
-    let html = '<table><thead><tr><th>Number</th><th>Naam</th><th>Status</th><th>Tags</th><th>Notes</th><th>Update</th></tr></thead><tbody>';
-    filtered.forEach(l => {
-      html += '<tr data-id="' + l.id + '">' +
-        '<td class="cell-number">' + escapeHtml(l.number) + '</td>' +
-        '<td class="cell-name">' + (escapeHtml(l.name) || "—") + '</td>' +
-        '<td>' + statusSelect(l) + '</td>' +
-        '<td><input class="inline-input" value="' + escapeAttr(l.tags) + '" placeholder="tag1, tag2" onblur="onFieldBlur(this,\'' + l.id + '\',\'tags\')" /></td>' +
-        '<td><input class="inline-input" value="' + escapeAttr(l.notes) + '" placeholder="note..." onblur="onFieldBlur(this,\'' + l.id + '\',\'notes\')" /></td>' +
-        '<td class="cell-updated">' + timeAgo(l.updatedAt) + '</td>' +
-        '</tr>';
-    });
-    html += '</tbody></table>';
-    holder.innerHTML = html;
-  }
+  document.getElementById("page-sub").textContent = filtered.length + " record" + (filtered.length===1?"":"s");
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
+  currentPageItems = pageItems;
 
-  function statusSelect(l) {
-    let opts = "";
-    STATUSES.forEach(s => {
-      opts += '<option value="' + s + '"' + (s === l.status ? " selected" : "") + '>' + s + '</option>';
-    });
-    return '<select class="status-select" style="color:' + STATUS_COLOR[l.status] + '" onchange="onStatusChange(this,\'' + l.id + '\')">' + opts + '</select>';
-  }
+  const holder = document.getElementById("table-holder");
+  if (!filtered.length) { holder.innerHTML = '<div class="empty"><div class="big">No records</div>Try a different filter or upload contacts.</div>'; document.getElementById("pagination").innerHTML = ""; updateBulkBar(); return; }
 
-  function escapeHtml(v) {
-    return String(v || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  }
-  function escapeAttr(v) { return escapeHtml(v); }
+  let head = "<tr><th><input type=\"checkbox\" id=\"select-all-page\" onclick=\"toggleSelectAllPage(this.checked)\" /></th>";
+  fields.forEach(f => head += "<th>" + escapeHtml(f.label) + "</th>");
+  head += "<th>Status</th><th>Amount</th><th>Updated</th><th></th></tr>";
 
-  async function onStatusChange(el, id) {
-    const status = el.value;
-    const lead = leads.find(l => l.id === id);
-    if (lead) lead.status = status;
-    await patch(id, { status: status });
+  let rows = "";
+  pageItems.forEach(c => {
+    const checked = selectedIds.has(c.id) ? "checked" : "";
+    rows += '<tr onclick="openCard(\'' + c.id + '\')">';
+    rows += '<td onclick="event.stopPropagation()"><input type="checkbox" ' + checked + ' onchange="toggleSelect(\'' + c.id + '\', this.checked)" /></td>';
+    fields.forEach(f => { const v = getFieldValue(c, f.key); const cls = f.key === "npi" ? "cell-mono" : (v ? "" : "cell-muted"); rows += '<td class="' + cls + '">' + (escapeHtml(v) || "—") + '</td>'; });
+    rows += '<td><span class="status-pill" style="background:var(--c-' + STATUS_KEY[c.status] + ')">' + c.status + '</span></td>';
+    rows += '<td class="amt">' + (AMOUNT_STATUSES.includes(c.status) && c.amount ? "$" + Number(c.amount).toLocaleString() : "—") + '</td>';
+    rows += '<td class="cell-mono cell-muted">' + timeAgo(c.updatedAt) + '</td>';
+    rows += '<td class="row-actions" onclick="event.stopPropagation()">' +
+      '<button class="icon-btn" title="Copy number" onclick="copyNumber(\'' + c.id + '\')">📋</button>' +
+      '<button class="icon-btn" title="Email" onclick="quickEmail(\'' + c.id + '\')">✉</button>' +
+      '<button class="icon-btn" title="Text" onclick="quickText(\'' + c.id + '\')">💬</button>' +
+      '<button class="icon-btn btn-danger" title="Delete" onclick="deleteContact(\'' + c.id + '\')">✕</button></td>';
+    rows += '</tr>';
+  });
+  holder.innerHTML = '<table><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
+  renderPagination(totalPages, filtered.length);
+  updateBulkBar();
+}
+function renderPagination(totalPages, total) {
+  const el = document.getElementById("pagination");
+  if (totalPages <= 1) { el.innerHTML = ""; return; }
+  el.innerHTML = '<button class="btn btn-sm" onclick="goPage(' + (currentPage-1) + ')" ' + (currentPage<=1?"disabled":"") + '>← Prev</button>' +
+    '<span class="panel-note">Page ' + currentPage + ' of ' + totalPages + ' (' + total + ' total)</span>' +
+    '<button class="btn btn-sm" onclick="goPage(' + (currentPage+1) + ')" ' + (currentPage>=totalPages?"disabled":"") + '>Next →</button>';
+}
+function goPage(p) { currentPage = p; render(); }
+
+/* ================= BULK SELECTION ================= */
+function toggleSelect(id, checked) {
+  if (checked) selectedIds.add(id); else selectedIds.delete(id);
+  updateBulkBar();
+  const cb = document.getElementById("select-all-page");
+  if (cb) cb.checked = currentPageItems.length > 0 && currentPageItems.every(c => selectedIds.has(c.id));
+}
+function toggleSelectAllPage(checked) { currentPageItems.forEach(c => { if (checked) selectedIds.add(c.id); else selectedIds.delete(c.id); }); render(); }
+function clearSelection() { selectedIds.clear(); render(); }
+function updateBulkBar() {
+  const bar = document.getElementById("bulkbar");
+  if (selectedIds.size > 0) {
+    bar.style.display = "flex";
+    bar.innerHTML = '<span class="panel-note">' + selectedIds.size + ' selected</span>' +
+      '<select id="bulk-status-select">' + STATUSES.map(s => '<option value="' + s + '">' + s + '</option>').join("") + '</select>' +
+      '<button class="btn btn-sm" onclick="applyBulkStatus()">Apply Status</button>' +
+      '<button class="btn btn-sm btn-danger" onclick="applyBulkDelete()">Delete Selected</button>' +
+      '<button class="btn btn-sm" onclick="clearSelection()">Clear Selection</button>';
+  } else bar.style.display = "none";
+}
+async function applyBulkStatus() {
+  const status = document.getElementById("bulk-status-select").value;
+  if (!selectedIds.size) return;
+  if (!confirm("Set status \"" + status + "\" for " + selectedIds.size + " contact(s)?")) return;
+  const now = new Date().toISOString();
+  const ids = Array.from(selectedIds);
+  const { error } = await sb.from("contacts").update({ status, updated_at: now }).in("id", ids);
+  if (error) { showToast("Update failed: " + error.message); return; }
+  contacts.forEach(c => { if (selectedIds.has(c.id)) { c.status = status; c.updatedAt = now; c.statusLog = (c.statusLog||[]).concat([{status,at:now}]); sb.from("contacts").update({status_log:c.statusLog}).eq("id",c.id); } });
+  showToast("Status updated for " + selectedIds.size + " contact(s)");
+  clearSelection(); render();
+}
+async function applyBulkDelete() {
+  if (!selectedIds.size) return;
+  if (!confirm("Delete " + selectedIds.size + " selected contact(s) permanently? This cannot be undone.")) return;
+  const ids = Array.from(selectedIds);
+  const { error } = await sb.from("contacts").delete().in("id", ids);
+  if (error) { showToast("Delete failed: " + error.message); return; }
+  contacts = contacts.filter(c => !selectedIds.has(c.id));
+  showToast(ids.length + " contact(s) deleted");
+  selectedIds.clear(); render();
+}
+
+/* ================= CARD MODAL ================= */
+function openCard(id) {
+  currentModalId = id;
+  const c = contacts.find(x => x.id === id);
+  if (!c) return;
+  let fieldsHtml = "";
+  fields.forEach(f => { fieldsHtml += '<div class="modal-field"><label>' + escapeHtml(f.label) + '</label><input value="' + escapeAttr(getFieldValue(c,f.key)) + '" onchange="updateField(\'' + f.key + '\', this.value)" /></div>'; });
+  let statusOpts = ""; STATUSES.forEach(s => statusOpts += '<option value="' + s + '"' + (s===c.status?" selected":"") + '>' + s + '</option>');
+  const showAmount = AMOUNT_STATUSES.includes(c.status);
+  document.getElementById("modal-body").innerHTML =
+    '<div class="modal-head"><h2>' + (escapeHtml(c.name) || "Contact") + '</h2><button class="modal-close" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-quickrow"><button class="btn" onclick="copyNumber(\'' + c.id + '\')">📋 Copy #</button><button class="btn" onclick="quickEmail(\'' + c.id + '\')">✉ Email</button><button class="btn" onclick="quickText(\'' + c.id + '\')">💬 Text</button></div>' +
+    fieldsHtml +
+    '<div class="modal-field"><label>Status</label><select onchange="updateStatus(this.value)">' + statusOpts + '</select></div>' +
+    (showAmount ? '<div class="modal-field"><label>Amount ($)</label><input type="number" value="' + escapeAttr(c.amount) + '" onchange="updateField(\'amount\', this.value)" placeholder="0.00" /></div>' : '') +
+    '<div class="modal-field"><label>Notes</label><textarea onchange="updateField(\'notes\', this.value)">' + escapeHtml(c.notes) + '</textarea></div>' +
+    '<div class="modal-foot"><span class="panel-note">Updated ' + timeAgo(c.updatedAt) + '</span><button class="btn btn-danger btn-sm" onclick="deleteContact(\'' + c.id + '\', true)">Delete Contact</button></div>';
+  document.getElementById("modal-overlay").classList.add("show");
+}
+function closeModal() { document.getElementById("modal-overlay").classList.remove("show"); currentModalId = null; render(); }
+document.addEventListener("DOMContentLoaded", () => { document.getElementById("modal-overlay").addEventListener("click", e => { if (e.target.id === "modal-overlay") closeModal(); }); });
+
+async function updateField(key, value) {
+  const c = contacts.find(x => x.id === currentModalId); if (!c) return;
+  setFieldValueLocal(c, key, key === "amount" ? (value === "" ? null : Number(value)) : value);
+  c.updatedAt = new Date().toISOString();
+  const patch = key === "amount" ? { amount: c.amount, updated_at: c.updatedAt }
+    : CORE_KEYS.includes(key) ? { [key]: value, updated_at: c.updatedAt }
+    : key === "notes" ? { notes: value, updated_at: c.updatedAt }
+    : { custom_fields: c.customFields, updated_at: c.updatedAt };
+  const { error } = await sb.from("contacts").update(patch).eq("id", c.id);
+  if (error) showToast("Save failed: " + error.message);
+}
+async function updateStatus(value) {
+  const c = contacts.find(x => x.id === currentModalId); if (!c) return;
+  c.status = value; c.updatedAt = new Date().toISOString();
+  c.statusLog = c.statusLog || []; c.statusLog.push({ status: value, at: c.updatedAt });
+  const { error } = await sb.from("contacts").update({ status: value, updated_at: c.updatedAt, status_log: c.statusLog }).eq("id", c.id);
+  if (error) showToast("Save failed: " + error.message);
+  openCard(currentModalId);
+}
+async function deleteContact(id, fromModal) {
+  if (!confirm("Delete this contact permanently?")) return;
+  const { error } = await sb.from("contacts").delete().eq("id", id);
+  if (error) { showToast("Delete failed: " + error.message); return; }
+  contacts = contacts.filter(c => c.id !== id);
+  if (fromModal) closeModal(); else render();
+  renderNav();
+}
+
+/* ================= EMAIL / TEXT / COPY ================= */
+function quickEmail(id) { const c = contacts.find(x => x.id === id); if (!c || !c.email) { showToast("No email on file for this contact"); return; } window.location.href = "mailto:" + encodeURIComponent(c.email); }
+function copyNumber(id) {
+  const c = contacts.find(x => x.id === id); if (!c || !c.phone) { showToast("No phone number on file"); return; }
+  const digits = String(c.phone).replace(/[^0-9+]/g, "");
+  navigator.clipboard.writeText(digits).then(() => showToast("Copied: " + digits + " — paste in Zoom")).catch(() => showToast("Copy failed — number: " + digits));
+}
+async function quickText(id) {
+  const c = contacts.find(x => x.id === id); if (!c || !c.phone) { showToast("No phone number on file"); return; }
+  const digits = String(c.phone).replace(/[^0-9+]/g, "");
+  navigator.clipboard.writeText(digits).then(() => showToast("Number copied — paste into Zoom's search bar to text " + digits)).catch(() => showToast("Copy this number to Zoom: " + digits));
+  try { window.location.href = "zoomphone://call?phone=" + encodeURIComponent(digits); } catch(e) {}
+  if (c.status === "Cold" || c.status === "Lead") {
+    c.status = "Text Sent"; c.updatedAt = new Date().toISOString();
+    c.statusLog = c.statusLog || []; c.statusLog.push({ status: "Text Sent", at: c.updatedAt });
+    await sb.from("contacts").update({ status: "Text Sent", updated_at: c.updatedAt, status_log: c.statusLog }).eq("id", c.id);
     render();
   }
+}
+function showToast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(window.__toastTimer); window.__toastTimer = setTimeout(() => t.classList.remove("show"), 3200); }
 
-  async function onFieldBlur(el, id, field) {
-    const value = el.value;
-    const lead = leads.find(l => l.id === id);
-    if (lead && lead[field] === value) return;
-    if (lead) lead[field] = value;
-    await patch(id, { [field]: value });
-  }
+/* ================= DASHBOARD ================= */
+function renderDashboard() {
+  const counts = {}; STATUSES.forEach(s => counts[s] = 0);
+  contacts.forEach(c => counts[c.status] = (counts[c.status]||0) + 1);
+  let statCards = "";
+  STATUSES.forEach(s => { statCards += '<div class="stat-card"><div class="num" style="color:var(--c-' + STATUS_KEY[s] + ')">' + counts[s] + '</div><div class="lbl">' + s + '</div></div>'; });
 
-  async function patch(id, updates) {
-    const params = new URLSearchParams({ action: "update", id: id, ...updates });
-    try {
-      const res = await fetch(WEBAPP_URL + "?" + params.toString());
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      showError("");
-    } catch (e) {
-      showError("Update save nahi hua: " + e.message);
-      loadLeads();
-    }
-  }
+  let pending = 0, closed = 0;
+  contacts.forEach(c => { const amt = parseFloat(c.amount) || 0; if (c.status === "Invoice" || c.status === "Agreement") pending += amt; if (c.status === "Closed") closed += amt; });
 
-  async function handleAdd() {
-    const text = document.getElementById("bulktext").value;
-    if (!text.trim()) return;
-    const btn = document.getElementById("add-btn");
-    btn.disabled = true;
-    btn.textContent = "Add ho raha hai...";
-    try {
-      const params = new URLSearchParams({ action: "add", numbers: text });
-      const res = await fetch(WEBAPP_URL + "?" + params.toString());
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      document.getElementById("add-result").textContent =
-        data.added.length + " add hue" + (data.skipped.length ? ", " + data.skipped.length + " duplicate skip hue" : "") + ".";
-      document.getElementById("bulktext").value = "";
-      showError("");
-      await loadLeads();
-    } catch (e) {
-      showError("Add nahi ho saka: " + e.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Add Karein";
-    }
-  }
+  const monthMap = {};
+  contacts.forEach(c => {
+    (c.statusLog && c.statusLog.length ? c.statusLog : [{status:c.status, at:c.updatedAt||c.createdAt}]).forEach(entry => {
+      if (!entry.at) return;
+      const d = new Date(entry.at); const mk = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+      monthMap[mk] = monthMap[mk] || {}; monthMap[mk][entry.status] = (monthMap[mk][entry.status] || 0) + 1;
+    });
+  });
+  const months = Object.keys(monthMap).sort().reverse().slice(0, 6);
+  let monthTable = '<table class="month-table"><thead><tr><th>Month</th>';
+  STATUSES.forEach(s => monthTable += '<th>' + s + '</th>');
+  monthTable += '</tr></thead><tbody>';
+  months.forEach(mk => { monthTable += '<tr><td>' + monthLabel(mk) + '</td>'; STATUSES.forEach(s => monthTable += '<td>' + (monthMap[mk][s] || 0) + '</td>'); monthTable += '</tr>'; });
+  monthTable += '</tbody></table>';
+  if (!months.length) monthTable = '<div class="empty">No activity yet.</div>';
 
-  loadLeads();
+  document.getElementById("view-dashboard").innerHTML =
+    '<div class="money-grid"><div class="money-card pending"><div class="lbl">Pending (Agreement + Invoice)</div><div class="num">$' + pending.toLocaleString() + '</div></div>' +
+    '<div class="money-card closed"><div class="lbl">Closed Revenue</div><div class="num">$' + closed.toLocaleString() + '</div></div>' +
+    '<div class="money-card"><div class="lbl">Total Contacts</div><div class="num">' + contacts.length + '</div></div></div>' +
+    '<div class="stat-grid">' + statCards + '</div>' +
+    '<div class="panel"><h3>Month-wise activity (by device date)</h3><div class="table-wrap">' + monthTable + '</div></div>';
+}
+function monthLabel(mk) { const [y,m] = mk.split("-"); const names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return names[parseInt(m,10)-1] + " " + y; }
+
+/* ================= EXPORT CSV ================= */
+function exportCsv() {
+  const cols = fields.map(f => f.key).concat(["status","amount","notes"]);
+  const header = fields.map(f => f.label).concat(["Status","Amount","Notes"]);
+  const csvRows = [header.map(csvEscape).join(",")];
+  contacts.forEach(c => { csvRows.push(cols.map(k => csvEscape(getFieldValue(c,k) || c[k] || "")).join(",")); });
+  downloadBlob(csvRows.join("\n"), "accelrcm-contacts-" + dateStamp() + ".csv", "text/csv");
+  showToast("CSV exported");
+}
+function csvEscape(v) { const s = String(v == null ? "" : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function downloadBlob(content, filename, mime) {
+  const blob = new Blob([content], { type: mime }); const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+function dateStamp() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); }
+
+/* ================= UTIL ================= */
+function timeAgo(iso) {
+  if (!iso) return "—";
+  const diffMs = Date.now() - new Date(iso).getTime(); const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now"; if (mins < 60) return mins + "m ago";
+  const hrs = Math.floor(mins / 60); if (hrs < 24) return hrs + "h ago";
+  const days = Math.floor(hrs / 24); if (days < 30) return days + "d ago";
+  return new Date(iso).toLocaleDateString();
+}
+function escapeHtml(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function escapeAttr(v) { return escapeHtml(v); }
 </script>
 </body>
 </html>
